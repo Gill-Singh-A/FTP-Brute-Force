@@ -40,6 +40,7 @@ def login(ftp_server, port, user, password):
         t2 = time()
         return False, t2-t1
     except Exception as err:
+        t2 = time()
         return err, t2-t1
 def brute_force(thread_index, ftp_server, port, credentials):
     successful_logins = {}
