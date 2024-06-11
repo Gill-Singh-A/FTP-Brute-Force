@@ -25,6 +25,7 @@ def get_arguments(*args):
     return parser.parse_args()[0]
 
 port = 21
+ignore_errors = True
 lock = Lock()
 timeout = 1
 
@@ -64,6 +65,8 @@ def brute_force(thread_index, ftp_server, port, credentials, timeout):
             else:
                 with lock:
                     display(' ', f"Thread {thread_index+1}:{status[1]:.2f}s -> {Fore.CYAN}{credential[0]}{Fore.RESET}:{Fore.GREEN}{credential[1]}{Fore.RESET} => {Fore.YELLOW}Error Occured : {Back.RED}{status[0]}{Fore.RESET}{Back.RESET}")
+                if ignore_errors:
+                    break
     return successful_logins
 def main(server, port, credentials, timeout):
     successful_logins = {}
@@ -90,6 +93,7 @@ if __name__ == "__main__":
                               ('-P', "--password", "password", "Passwords (seperated by ',') or File containing List of Passwords"),
                               ('-c', "--credentials", "credentials", "Name of File containing Credentials in format ({user}:{password})"),
                               ('-t', "--timeout", "timeout", f"Timeout for Connecting to FTP Server (Default={timeout})"),
+                              ('-i', "--ignore-errors", "ignore_errors", f"Ignore Errors (True/False, Default={ignore_errors})"),
                               ('-w', "--write", "write", "CSV File to Dump Successful Logins (default=current data and time)"))
     if not arguments.server:
         display('-', f"Please specify {Back.YELLOW}Target Server{Back.RESET}")
@@ -140,6 +144,8 @@ if __name__ == "__main__":
         arguments.timeout = float(arguments.timeout)
     else:
         arguments.timeout = -1
+    if arguments.ignore_errors == False:
+        ignore_errors = False
     if not arguments.write:
         arguments.write = f"{date.today()} {strftime('%H_%M_%S', localtime())}.csv"
     display('+', f"Total Credentials = {Back.MAGENTA}{len(arguments.credentials)}{Back.RESET}")
